@@ -45,8 +45,10 @@ def fetch_book(pair=PAIR):
     """Orderbook penuh (100 aras setiap sisi). Pulang harga menurun untuk
     bid, menaik untuk ask — iaitu terbaik dahulu."""
     d = _get(f"{BASE}/orderbook_top?pair={pair}")
-    bids = [(float(x["price"]), float(x["volume"])) for x in d["bids"]]
-    asks = [(float(x["price"]), float(x["volume"])) for x in d["asks"]]
+    bids = [(float(x["price"]), float(x["volume"])) for x in (d.get("bids") or [])]
+    asks = [(float(x["price"]), float(x["volume"])) for x in (d.get("asks") or [])]
+    if not bids or not asks:
+        raise ValueError(f"Orderbook {pair} kosong sebelah — tak boleh kira mid.")
     bids.sort(key=lambda x: -x[0])
     asks.sort(key=lambda x: x[0])
     return {"ts": int(d["timestamp"]), "bids": bids, "asks": asks}
@@ -58,9 +60,13 @@ def fetch_trades(pair=PAIR, since_ms=None):
     if since_ms is not None:
         url += f"&since={int(since_ms)}"
     d = _get(url)
+    # Luno pulangkan {"trades": null}, bukan array kosong, bila tiada
+    # dagangan dalam tetingkap. dict.get(k, default) TAK tolong di sini
+    # sebab kunci tu wujud dengan nilai null.
+    raw = d.get("trades") or []
     t = [{"ts": int(x["timestamp"]), "price": float(x["price"]),
           "volume": float(x["volume"]), "is_buy": bool(x["is_buy"])}
-         for x in d.get("trades", [])]
+         for x in raw]
     t.sort(key=lambda x: x["ts"])
     return t
 
