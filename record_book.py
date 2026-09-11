@@ -17,6 +17,7 @@ Guna data AWAM Luno. Tiada API key. Tiada duit.
 """
 
 import argparse
+import datetime as _dt
 import json
 import os
 import statistics
@@ -122,6 +123,53 @@ def analyse():
     print()
     print("nisbah >= 1.0 bermakna volum cukup untuk makan barisan depan kita.")
     print("Bawah 1.0, limit order kita duduk TAK TERISI walau harga sentuh aras.")
+
+    _coverage(rows)
+
+
+def _coverage(rows):
+    """
+    Liputan ikut jam. Kritikal bila laptop tidur: data yang berlubang
+    boleh nampak lengkap sedangkan ia terlepas jam tersibuk sepenuhnya.
+
+    Jam ditunjuk waktu Malaysia (UTC+8). Sesi pasaran kasar:
+      08-17 MYT  Asia
+      15-24 MYT  Eropah
+      21-06 MYT  Amerika  <- selalunya paling sibuk, dan paling mungkin
+                             terlepas kalau laptop ditutup malam
+    """
+    by_hour = {}
+    vol_hour = {}
+    for r in rows:
+        h = _dt.datetime.fromtimestamp(r["ts"] / 1000, _dt.timezone.utc)
+        h = (h.hour + 8) % 24                    # -> waktu Malaysia
+        by_hour[h] = by_hour.get(h, 0) + 1
+        vol_hour[h] = vol_hour.get(h, 0.0) + r["volume"]
+
+    covered = sorted(by_hour)
+    print()
+    print(f"LIPUTAN — {len(covered)}/24 jam ada data (waktu Malaysia)")
+    print()
+    bar_max = max(by_hour.values()) if by_hour else 1
+    for h in range(24):
+        n = by_hour.get(h, 0)
+        v = vol_hour.get(h, 0.0)
+        bar = "#" * int(12 * n / bar_max) if n else ""
+        mark = "" if n else "  <- TIADA DATA"
+        print(f"  {h:02d}:00  {n:>4} snap  {v:>8.4f} BTC  {bar}{mark}")
+
+    missing = [h for h in range(24) if h not in by_hour]
+    if missing:
+        print()
+        print(f"  {len(missing)} jam tiada data langsung.")
+        us = [h for h in missing if h >= 21 or h <= 6]
+        if us:
+            print("  Termasuk jam sesi Amerika — selalunya tempoh paling sibuk.")
+            print("  Nisbah pengisian di atas kemungkinan TERLALU RENDAH: kau")
+            print("  terlepas tepat masa volum paling tinggi.")
+    elif len(covered) == 24:
+        print()
+        print("  Liputan penuh 24 jam. Nisbah di atas boleh dipercayai.")
 
 
 def main():
