@@ -13,6 +13,8 @@ Paper trading sedang berjalan untuk mengesahkan pada data hadapan.
 | `compare.py` | Jalankan semua strategi + walk-forward atas data sejarah |
 | `fetch_data.py` | Tarik sejarah BTC dari Binance (tiada API key) |
 | `grid_backtest.py` | Backtest grid khusus, guna data XBTMYR sebenar (perlu API key Luno) |
+| `orderbook.py` | Model pengisian sedar-barisan — adakah limit order kita betul-betul terisi |
+| `record_book.py` | Rekod orderbook XBTMYR sebenar untuk jawab soalan itu |
 
 ## Arahan harian
 
@@ -41,6 +43,21 @@ Mulakan semula dengan strategi lain (sejarah sedia ada HILANG):
 
 Pilihan: `buyhold, rebalance, grid, grid_stop, donchian, macross, macd, rsi,
 bollinger, dip`. `buyhold` sentiasa dimasukkan sebagai penanda aras.
+
+## Analisis pengisian orderbook
+
+Semua backtest andaikan limit order terisi sebaik harga sentuh aras kita.
+Itu tak benar — kita beratur di belakang order lain. `record_book.py`
+kumpul data sebenar untuk mengukur jurang tu. Berjalan automatik setiap
+5 minit melalui cron.
+
+```bash
+.venv/bin/python record_book.py --analyse
+```
+
+Kalau nisbah bawah 1.0, limit order kita duduk TAK TERISI walaupun harga
+sentuh aras — bermakna fee maker 0.35% yang diandaikan seluruh projek ni
+tak sah, dan hasil backtest terlebih optimis.
 
 ## Backtest sejarah
 
@@ -86,6 +103,9 @@ Daftar dalam `STRATEGIES` (paper_trade.py) dan `BUILDERS` (compare.py).
    14 ordernya ditolak — ia duduk atas tunai, bukan strategi.
 5. **Trade lebih = untung kurang.** Korelasi bilangan trade lawan pulangan
    atas 110 sampel bebas: **−0.946**.
+6. **Sentuh bukan bermakna terisi.** Limit order beratur di belakang order
+   lain. Semak `record_book.py --analyse` sebelum percaya mana-mana hasil
+   yang andaikan fee maker.
 
 ## Kos sebenar (semak semula kalau berubah)
 

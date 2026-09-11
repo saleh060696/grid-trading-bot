@@ -12,6 +12,12 @@ paper_state.json.tmp
 paper_decisions.csv
 paper_cron.log
 
+# Data orderbook dikumpul (berkembang setiap 5 minit)
+book_log.jsonl
+book_state.json
+book_state.json.tmp
+book_cron.log
+
 # Backup asal — sejarah disimpan dalam git sekarang
 *.bak
 
