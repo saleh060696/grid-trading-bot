@@ -1,0 +1,18 @@
+# Persekitaran Python
+.venv/
+__pycache__/
+*.pyc
+
+# Data harga — boleh jana semula: python3 fetch_data.py
+btc_*.csv
+
+# State & log paper trading (berubah setiap 10 minit, bukan kod)
+paper_state.json
+paper_state.json.tmp
+paper_decisions.csv
+paper_cron.log
+
+# Backup asal — sejarah disimpan dalam git sekarang
+*.bak
+
+.DS_Store
