@@ -1,0 +1,59 @@
+name: Paper trading
+
+# Jalankan paper trading 24 jam pada server GitHub.
+# Tak execute apa-apa trade — guna endpoint ticker AWAM Luno sahaja.
+#
+# State disimpan dalam branch 'paper-data' (berasingan dari branch 'data'
+# milik perekam orderbook, supaya dua workflow tak berebut force-push).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-trading
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Ambil state sedia ada
+        run: |
+          git fetch origin paper-data:paper-data 2>/dev/null || echo "branch belum wujud"
+          git show paper-data:paper_state.json > paper_state.json 2>/dev/null \
+            && echo "state dimuat" || echo "tiada state — akan init"
+          git show paper-data:paper_decisions.csv > paper_decisions.csv 2>/dev/null || true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Init kalau perlu, kemudian tick
+        run: |
+          if [ ! -s paper_state.json ]; then
+            python paper_trade.py init --strategies all --interval 1h --warmup 30
+          fi
+          python paper_trade.py tick
+
+      - name: Simpan ke branch paper-data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan paper-tmp
+          git rm -rf --cached . > /dev/null 2>&1 || true
+          git add -f paper_state.json
+          git add -f paper_decisions.csv 2>/dev/null || true
+          BARS=$(python -c "import json;print(len(json.load(open('paper_state.json'))['bars']))")
+          git commit -q -m "Paper trading — $BARS bar, $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -f origin paper-tmp:paper-data
+          echo "ditolak: $BARS bar"
