@@ -1,0 +1,66 @@
+name: Record orderbook
+
+# Kumpul data orderbook XBTMYR 24 jam, tanpa bergantung pada laptop.
+#
+# Reka bentuk:
+# - Poll setiap 5 minit. Ini BUKAN pilihan: endpoint trades Luno pulangkan
+#   maksimum 100 dagangan setiap panggilan, dan pada jam sibuk kadarnya
+#   ~340/jam. Poll lebih jarang = data hilang senyap.
+# - Tulis ke branch 'data' berasingan supaya 'main' kekal bersih.
+# - Guna --amend supaya branch data kekal SATU commit yang berkembang,
+#   bukan 288 commit baharu setiap hari.
+#
+# Tiada rahsia diperlukan: record_book.py guna endpoint AWAM Luno sahaja.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:        # butang jalankan manual
+
+permissions:
+  contents: write
+
+concurrency:
+  group: record-orderbook
+  cancel-in-progress: false   # jangan batalkan run yang sedang tulis data
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ambil kod dari main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Ambil data sedia ada dari branch data
+        run: |
+          git fetch origin data:data 2>/dev/null || echo "branch data belum wujud"
+          if git show data:book_log.jsonl > /tmp/book_log.jsonl 2>/dev/null; then
+            cp /tmp/book_log.jsonl book_log.jsonl
+            echo "dimuat: $(wc -l < book_log.jsonl) snapshot sedia ada"
+          else
+            echo "mula dari kosong"
+          fi
+          git show data:book_state.json > book_state.json 2>/dev/null || true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rekod snapshot
+        run: python record_book.py
+
+      - name: Simpan ke branch data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Branch yatim: data sahaja, tiada sejarah kod.
+          git checkout --orphan data-tmp
+          git rm -rf --cached . > /dev/null 2>&1 || true
+          git add -f book_log.jsonl book_state.json 2>/dev/null || git add -f book_log.jsonl
+          git commit -q -m "Data orderbook — $(wc -l < book_log.jsonl) snapshot, dikemas kini $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -f origin data-tmp:data
+          echo "ditolak: $(wc -l < book_log.jsonl) snapshot"
