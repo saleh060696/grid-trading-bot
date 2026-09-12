@@ -30,9 +30,19 @@ jobs:
       - name: Ambil state sedia ada
         run: |
           git fetch origin paper-data:paper-data 2>/dev/null || echo "branch belum wujud"
-          git show paper-data:paper_state.json > paper_state.json 2>/dev/null \
-            && echo "state dimuat" || echo "tiada state — akan init"
-          git show paper-data:paper_decisions.csv > paper_decisions.csv 2>/dev/null || true
+          # Redirect shell cipta fail KOSONG walaupun git show gagal, dan
+          # fail kosong tu buat 'init' ingat sesi dah wujud. Tulis ke fail
+          # sementara dan hanya pindahkan bila git show betul-betul berjaya.
+          if git show paper-data:paper_state.json > /tmp/st.json 2>/dev/null; then
+            mv /tmp/st.json paper_state.json && echo "state dimuat"
+          else
+            rm -f paper_state.json /tmp/st.json; echo "tiada state — akan init"
+          fi
+          if git show paper-data:paper_decisions.csv > /tmp/dec.csv 2>/dev/null; then
+            mv /tmp/dec.csv paper_decisions.csv
+          else
+            rm -f /tmp/dec.csv
+          fi
 
       - uses: actions/setup-python@v5
         with:

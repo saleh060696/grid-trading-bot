@@ -64,8 +64,8 @@ def fetch_price():
 
 
 def load_state():
-    if not os.path.exists(STATE):
-        sys.exit(f"'{STATE}' tak jumpa. Run dulu: paper_trade.py init")
+    if not os.path.exists(STATE) or os.path.getsize(STATE) == 0:
+        sys.exit(f"'{STATE}' tak jumpa atau kosong. Run dulu: paper_trade.py init")
     with open(STATE) as fh:
         st = json.load(fh)
     if "strategies" not in st:
@@ -136,7 +136,9 @@ def log_rows(ts, price, rows, bh_equity):
 
 
 def cmd_init(args):
-    if os.path.exists(STATE) and not args.force:
+    # Fail KOSONG bukan sesi sah. Ia boleh timbul dari redirect shell yang
+    # gagal atau tulisan terputus — jangan halang init kerananya.
+    if os.path.exists(STATE) and os.path.getsize(STATE) > 0 and not args.force:
         sys.exit(f"'{STATE}' dah wujud. Guna --force untuk mula semula "
                  "(sejarah sedia ada akan HILANG).")
     if args.interval not in INTERVAL_SEC:

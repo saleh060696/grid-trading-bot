@@ -43,7 +43,11 @@ jobs:
           else
             echo "mula dari kosong"
           fi
-          git show data:book_state.json > book_state.json 2>/dev/null || true
+          if git show data:book_state.json > /tmp/bs.json 2>/dev/null; then
+            mv /tmp/bs.json book_state.json
+          else
+            rm -f book_state.json /tmp/bs.json
+          fi
 
       - uses: actions/setup-python@v5
         with:
