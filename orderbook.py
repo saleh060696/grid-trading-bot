@@ -54,11 +54,40 @@ def fetch_book(pair=PAIR):
     return {"ts": int(d["timestamp"]), "bids": bids, "asks": asks}
 
 
+def fetch_ticker(pair=PAIR):
+    """
+    Ticker termasuk rolling_24_hour_volume — jumlah volum LENGKAP 24 jam.
+
+    Ini penting: ia dikira oleh Luno, bukan oleh kita, jadi ia tepat tanpa
+    mengira berapa kerap kita poll. Endpoint trades ada cap 100 dan tak
+    boleh dipercayai untuk jumlah; ticker boleh.
+    """
+    d = _get(f"{BASE}/ticker?pair={pair}")
+    return {
+        "bid": float(d["bid"]),
+        "ask": float(d["ask"]),
+        "last": float(d["last_trade"]),
+        "vol_24h": float(d["rolling_24_hour_volume"]),
+    }
+
+
+# Luno tolak since lebih lama dari ~24 jam dengan HTTP 400.
+MAX_SINCE_MS = 23 * 3600 * 1000
+
+# Luno pulangkan maksimum 100 dagangan, dan ia yang TERAWAL sejak since
+# (bukan terkini). Jadi cursor yang bergerak ikut dagangan akan ketinggalan
+# kekal kalau kita poll lebih jarang daripada 100 dagangan sekali.
+TRADE_LIMIT = 100
+
+
 def fetch_trades(pair=PAIR, since_ms=None):
     """Dagangan terkini, disusun MENAIK ikut masa (terlama dahulu)."""
     url = f"{BASE}/trades?pair={pair}"
     if since_ms is not None:
-        url += f"&since={int(since_ms)}"
+        # Jangan sekali-kali hantar since yang Luno akan tolak.
+        floor = int(time.time() * 1000) - MAX_SINCE_MS
+        since_ms = max(int(since_ms), floor)
+        url += f"&since={since_ms}"
     d = _get(url)
     # Luno pulangkan {"trades": null}, bukan array kosong, bila tiada
     # dagangan dalam tetingkap. dict.get(k, default) TAK tolong di sini

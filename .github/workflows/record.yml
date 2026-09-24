@@ -43,11 +43,7 @@ jobs:
           else
             echo "mula dari kosong"
           fi
-          if git show data:book_state.json > /tmp/bs.json 2>/dev/null; then
-            mv /tmp/bs.json book_state.json
-          else
-            rm -f book_state.json /tmp/bs.json
-          fi
+
 
       - uses: actions/setup-python@v5
         with:
@@ -64,7 +60,7 @@ jobs:
           # Branch yatim: data sahaja, tiada sejarah kod.
           git checkout --orphan data-tmp
           git rm -rf --cached . > /dev/null 2>&1 || true
-          git add -f book_log.jsonl book_state.json 2>/dev/null || git add -f book_log.jsonl
+          git add -f book_log.jsonl
           git commit -q -m "Data orderbook — $(wc -l < book_log.jsonl) snapshot, dikemas kini $(date -u +%Y-%m-%dT%H:%MZ)"
           git push -f origin data-tmp:data
           echo "ditolak: $(wc -l < book_log.jsonl) snapshot"
